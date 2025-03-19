@@ -10,7 +10,7 @@ const formatTime = (seconds) => {
   )}:${String(secs).padStart(2, "0")}`;
 };
 
-const Timer = ({ id, label, initialTime, onRemove, updateClockTime }) => {
+const Timer = ({ id, label, initialTime, onRemove, updateClockTime, activeTimerId, setActiveTimerId }) => {
   const savedState = JSON.parse(localStorage.getItem(`timer-${id}`)) || {};
   const [timeLeft, setTimeLeft] = useState(
     savedState.remainingTime ?? initialTime
@@ -47,14 +47,15 @@ const Timer = ({ id, label, initialTime, onRemove, updateClockTime }) => {
   }, [isRunning, startTime, timeLeft]);
 
   const startTimer = () => {
-    if (!isRunning) {
-      setStartTime(Date.now() - (initialTime - timeLeft) * 1000);
-      setIsRunning(true);
-    }
+    if (activeTimerId !== null && activeTimerId !== id) return; // Prevent multiple timers
+    setStartTime(Date.now() - (initialTime - timeLeft) * 1000);
+    setIsRunning(true);
+    setActiveTimerId(id);
   };
 
   const pauseTimer = () => {
     setIsRunning(false);
+    setActiveTimerId(null);
   };
 
   const resetTimer = () => {
@@ -122,6 +123,7 @@ export default function DigitalClocks() {
   const [history, setHistory] = useState(
     () => JSON.parse(localStorage.getItem("history")) || []
   );
+  const [activeTimerId, setActiveTimerId] = useState(null);
 
   const handleTabChange = (newTab) => {
     setTab(newTab);
@@ -136,6 +138,28 @@ export default function DigitalClocks() {
   useEffect(() => {
     localStorage.setItem("clocks", JSON.stringify(clocks));
   }, [clocks]);
+
+
+const startTimer = (id) => {
+  setClocks((prev) =>
+    prev.map((clock) => ({
+      ...clock,
+      isRunning: clock.id === id, // Only the selected clock runs
+      startTime: clock.id === id ? Date.now() - (clock.initialTime - clock.time) * 1000 : clock.startTime,
+    }))
+  );
+  setActiveTimerId(id);
+};
+
+const pauseTimer = () => {
+  setClocks((prev) =>
+    prev.map((clock) => ({
+      ...clock,
+      isRunning: false, // Stop all clocks
+    }))
+  );
+  setActiveTimerId(null);
+};
 
   const addClock = () => {
     const totalSeconds =
@@ -206,17 +230,17 @@ export default function DigitalClocks() {
 
   return (
     <>
-      <header className="bg-gray-900 text-white">
+      <header className="bg-gray-900 p-4 h-[60px] text-white">
         <ul className="flex justify-center gap-4">
           <li
-            className={`px-4 py-2 rounded ${tab === "timers" ? "bg-blue-500" : "bg-gray-500"
+            className={` cursor-pointer px-4 py-2 rounded ${tab === "timers" ? "bg-blue-500" : "bg-gray-500"
               }`}
             onClick={() => handleTabChange("timers")}
           >
             Timers
           </li>
           <li
-            className={`px-4 py-2 rounded ${tab === "history" ? "bg-blue-500" : "bg-gray-500"
+            className={` cursor-pointer px-4 py-2 rounded ${tab === "history" ? "bg-blue-500" : "bg-gray-500"
               }`}
             onClick={() => handleTabChange("history")}
           >
@@ -225,10 +249,10 @@ export default function DigitalClocks() {
         </ul>
       </header>
       {tab == "timers" ? (
-        <div className="flex flex-col justify-center items-center h-screen bg-gray-900 text-white">
+        <div className="flex flex-col justify-center items-center h-[calc(100vh-60px)] bg-gray-900 text-white">
           <button
             onClick={() => setShowForm(true)}
-            className="mb-4 px-4 py-2 bg-blue-500 rounded"
+            className="mb-4 px-4 py-2 bg-blue-500 rounded cursor-pointer"
           >
             + Add Clock
           </button>
@@ -237,7 +261,7 @@ export default function DigitalClocks() {
               <input
                 type="text"
                 placeholder="Clock Name"
-                className="mb-2 p-2 rounded text-black"
+                className="mb-2 p-2 rounded text-white"
                 value={newClockLabel}
                 onChange={(e) => setNewClockLabel(e.target.value)}
               />
@@ -245,23 +269,26 @@ export default function DigitalClocks() {
                 <input
                   type="number"
                   placeholder="HH"
-                  className="w-16 p-2 rounded text-black"
+                  className="w-16 p-2 rounded text-white"
                   value={hours}
                   onChange={(e) => setHours(e.target.value)}
+                  min="0"
                 />
                 <input
                   type="number"
                   placeholder="MM"
-                  className="w-16 p-2 rounded text-black"
+                  className="w-16 p-2 rounded text-white"
                   value={minutes}
                   onChange={(e) => setMinutes(e.target.value)}
+                  min="0"
                 />
                 <input
                   type="number"
                   placeholder="SS"
-                  className="w-16 p-2 rounded text-black"
+                  className="w-16 p-2 rounded text-white"
                   value={seconds}
                   onChange={(e) => setSeconds(e.target.value)}
+                  min="0"
                 />
               </div>
               <div className="mt-2">
@@ -290,12 +317,14 @@ export default function DigitalClocks() {
                 onRemove={removeClock}
                 updateClockTime={updateClockTime}
                 addToHistory={addToHistory}
+                activeTimerId={activeTimerId}
+                setActiveTimerId={setActiveTimerId}
               />
             ))}
           </div>
         </div>
       ) : (
-        <div className="p-4 bg-gray-900 h-screen text-white">
+        <div className="p-4 bg-gray-900 h-[calc(100vh-60px)] text-white">
           <h2 className="text-xl font-bold mb-4">Completed Timers</h2>
           <div className="overflow-x-auto">
             <table className="w-full border-collapse border border-gray-700">
