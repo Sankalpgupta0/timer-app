@@ -110,18 +110,16 @@ const Timer = ({
         <button
           onClick={startTimer}
           disabled={isRunning}
-          className={` cursor-pointer px-3 py-1 rounded ${
-            isRunning ? "bg-gray-500" : "bg-green-500"
-          }`}
+          className={` cursor-pointer px-3 py-1 rounded ${isRunning ? "bg-gray-500" : "bg-green-500"
+            }`}
         >
           Start
         </button>
         <button
           onClick={pauseTimer}
           disabled={!isRunning}
-          className={` cursor-pointer px-3 py-1 rounded ${
-            !isRunning ? "bg-gray-500" : "bg-yellow-500"
-          }`}
+          className={` cursor-pointer px-3 py-1 rounded ${!isRunning ? "bg-gray-500" : "bg-yellow-500"
+            }`}
         >
           Pause
         </button>
@@ -231,14 +229,14 @@ export default function DigitalClocks() {
       let percentageCompleted =
         totalTime > 0
           ? Math.min(
-              100,
-              Math.max(0, ((completedTime / totalTime) * 100).toFixed(2))
-            )
+            100,
+            Math.max(0, ((completedTime / totalTime) * 100).toFixed(2))
+          )
           : 100;
       if (completedTime === 0) {
         percentageCompleted = 100;
       }
-      if(time === totalTime){
+      if (time === totalTime) {
         percentageCompleted = 0;
       }
 
@@ -278,17 +276,15 @@ export default function DigitalClocks() {
       <header className="bg-gray-900 p-4 h-[60px] text-white">
         <ul className="flex justify-center gap-4">
           <li
-            className={` cursor-pointer px-4 py-2 rounded ${
-              tab === "timers" ? "bg-blue-500" : "bg-gray-500"
-            }`}
+            className={` cursor-pointer px-4 py-2 rounded ${tab === "timers" ? "bg-blue-500" : "bg-gray-500"
+              }`}
             onClick={() => handleTabChange("timers")}
           >
             Timers
           </li>
           <li
-            className={` cursor-pointer px-4 py-2 rounded ${
-              tab === "history" ? "bg-blue-500" : "bg-gray-500"
-            }`}
+            className={` cursor-pointer px-4 py-2 rounded ${tab === "history" ? "bg-blue-500" : "bg-gray-500"
+              }`}
             onClick={() => handleTabChange("history")}
           >
             History
@@ -379,48 +375,53 @@ export default function DigitalClocks() {
               <thead>
                 <tr className="bg-gray-800">
                   <th className="border border-gray-700 px-4 py-2">Date</th>
-                  <th className="border border-gray-700 px-4 py-2">
-                    Clock Name
-                  </th>
-                  <th className="border border-gray-700 px-4 py-2">
-                    Timer Set
-                  </th>
-                  <th className="border border-gray-700 px-4 py-2">
-                    % Completed
-                  </th>
+                  <th className="border border-gray-700 px-4 py-2">Clock Name</th>
+                  <th className="border border-gray-700 px-4 py-2">Timer Set</th>
+                  <th className="border border-gray-700 px-4 py-2">% Completed</th>
                 </tr>
               </thead>
               <tbody>
-                {history
-                  .sort((a, b) => new Date(b.id) - new Date(a.id)) // Sorting in descending order (latest first)
-                  .map(({ id, label, timeSet, percentageCompleted }) => (
-                    <tr key={id} className="bg-gray-700">
-                      <td className="border border-gray-600 px-4 py-2">
-                        {new Date(id).toLocaleString("en-US", {
-                          year: "numeric",
-                          month: "short",
-                          day: "numeric",
-                          hour: "numeric",
-                          minute: "numeric",
-                          second: "numeric",
-                          hour12: true,
-                        })}
-                      </td>
-                      <td className="border border-gray-600 px-4 py-2">
-                        {label}
-                      </td>
-                      <td className="border border-gray-600 px-4 py-2">
-                        {formatTime(timeSet)}
-                      </td>
-                      <td className="border border-gray-600 px-4 py-2">
-                        {percentageCompleted}%
-                      </td>
-                    </tr>
-                  ))}
+                {Object.entries(
+                  history.reduce((acc, entry) => {
+                    const date = new Date(entry.id).toLocaleDateString("en-US", {
+                      year: "numeric",
+                      month: "short",
+                      day: "numeric",
+                    });
+                    if (!acc[date]) acc[date] = [];
+                    acc[date].push(entry);
+                    return acc;
+                  }, {})
+                )
+                  .sort((a, b) => new Date(b[0]) - new Date(a[0])) // Sort dates descending
+                  .map(([date, entries], index) => {
+                    const bgColor = index % 2 === 0 ? "bg-gray-800" : "bg-gray-700"; // Alternate colors
+
+                    return entries.map(({ id, label, timeSet, percentageCompleted }, i) => (
+                      <tr key={id} className={bgColor}>
+                        {i === 0 && (
+                          <td
+                            rowSpan={entries.length}
+                            className="border border-gray-600 px-4 py-2 font-bold text-blue-400 text-center"
+                          >
+                            {date}
+                          </td>
+                        )}
+                        <td className="border border-gray-600 px-4 py-2">{label}</td>
+                        <td className="border border-gray-600 px-4 py-2">
+                          {formatTime(timeSet)}
+                        </td>
+                        <td className="border border-gray-600 px-4 py-2">
+                          {percentageCompleted}%
+                        </td>
+                      </tr>
+                    ));
+                  })}
               </tbody>
             </table>
           </div>
         </div>
+
       )}
     </>
   );
