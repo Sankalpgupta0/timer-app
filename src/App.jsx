@@ -18,7 +18,7 @@ const Timer = ({
   updateClockTime,
   activeTimerId,
   setActiveTimerId,
-  totalTime
+  totalTime,
 }) => {
   const savedState = JSON.parse(localStorage.getItem(`timer-${id}`)) || {};
   const [timeLeft, setTimeLeft] = useState(
@@ -67,7 +67,7 @@ const Timer = ({
   };
 
   const resetTimer = () => {
-    console.log(totalTime)
+    console.log(totalTime);
     setIsRunning(false);
     setTimeLeft(totalTime); // Reset to totalTime
     setStartTime(null);
@@ -167,36 +167,43 @@ export default function DigitalClocks() {
     localStorage.setItem("clocks", JSON.stringify(clocks));
   }, [clocks]);
 
-  const startTimer = (id) => {
-    setClocks((prev) =>
-      prev.map((clock) => ({
-        ...clock,
-        isRunning: clock.id === id, // Only the selected clock runs
-        startTime:
-          clock.id === id
-            ? Date.now() - (clock.initialTime - clock.time) * 1000
-            : clock.startTime,
-      }))
-    );
-    setActiveTimerId(id);
-  };
+  useEffect(() => {
+    const checkMidnight = () => {
+      const now = new Date();
+      const lastReset = localStorage.getItem("lastResetDate");
 
-  const pauseTimer = () => {
-    setClocks((prev) =>
-      prev.map((clock) => ({
-        ...clock,
-        isRunning: false, // Stop all clocks
-      }))
-    );
-    setActiveTimerId(null);
-  };
+      const today = now.toISOString().split("T")[0]; // Get today's date as YYYY-MM-DD
+
+      if (
+        lastReset !== today &&
+        now.getHours() === 0 &&
+        now.getMinutes() === 0
+      ) {
+        setClocks((prevClocks) =>
+          prevClocks.map((clock) => ({
+            ...clock,
+            time: clock.totalTime, // Reset to totalTime
+            isRunning: false, // Stop the timer
+          }))
+        );
+
+        localStorage.setItem("lastResetDate", today); // Update last reset date
+      }
+    };
+
+    const interval = setInterval(checkMidnight, 60 * 1000); // Check every minute
+
+    return () => clearInterval(interval);
+  }, []);
 
   const addClock = () => {
     const totalSeconds =
       (parseInt(hours) || 0) * 3600 +
       (parseInt(minutes) || 0) * 60 +
       (parseInt(seconds) || 0);
+
     if (!newClockLabel || totalSeconds <= 0) return;
+
     const newId = Date.now();
     setClocks([
       ...clocks,
@@ -204,10 +211,10 @@ export default function DigitalClocks() {
         id: newId,
         label: newClockLabel,
         time: totalSeconds,
-        initialTime: totalSeconds,
-        totalTime: totalSeconds,
+        totalTime: totalSeconds, // Store totalTime
       },
     ]);
+
     setNewClockLabel("");
     setHours("");
     setMinutes("");
