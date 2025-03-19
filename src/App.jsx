@@ -225,20 +225,24 @@ export default function DigitalClocks() {
   const removeClock = (id) => {
     const clockToRemove = clocks.find((clock) => clock.id === id);
     if (clockToRemove) {
-      const { label, time, initialTime } = clockToRemove;
-      const completedTime = initialTime - time; // Time elapsed
+      const { label, time, totalTime } = clockToRemove;
+      const completedTime = totalTime - time;
+      console.log(time, totalTime, completedTime);
       let percentageCompleted =
-        initialTime > 0
+        totalTime > 0
           ? Math.min(
               100,
-              Math.max(0, ((completedTime / initialTime) * 100).toFixed(2))
+              Math.max(0, ((completedTime / totalTime) * 100).toFixed(2))
             )
           : 100;
-      if (completedTime == 0) {
+      if (completedTime === 0) {
         percentageCompleted = 100;
       }
+      if(time === totalTime){
+        percentageCompleted = 0;
+      }
 
-      addToHistory({ label, timeSet: initialTime, percentageCompleted });
+      addToHistory({ label, timeSet: totalTime, percentageCompleted });
     }
     localStorage.removeItem(`timer-${id}`);
     setClocks(clocks.filter((clock) => clock.id !== id));
