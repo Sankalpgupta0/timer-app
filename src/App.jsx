@@ -166,9 +166,12 @@ export default function DigitalClocks() {
     if (clockToRemove) {
       const { label, time, initialTime } = clockToRemove;
       const completedTime = initialTime - time; // Time elapsed
-      const percentageCompleted = initialTime > 0
-        ? Math.min(100, Math.max(0, ((1 - completedTime / initialTime) * 100).toFixed(2)))
+      let percentageCompleted = initialTime > 0
+        ? Math.min(100, Math.max(0, ((completedTime / initialTime) * 100).toFixed(2)))
         : 100;
+      if(completedTime==0){
+        percentageCompleted=100;
+      }
 
       addToHistory({ label, timeSet: initialTime, percentageCompleted });
     }
