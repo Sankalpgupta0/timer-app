@@ -10,7 +10,16 @@ const formatTime = (seconds) => {
   )}:${String(secs).padStart(2, "0")}`;
 };
 
-const Timer = ({ id, label, initialTime, onRemove, updateClockTime, activeTimerId, setActiveTimerId }) => {
+const Timer = ({
+  id,
+  label,
+  initialTime,
+  onRemove,
+  updateClockTime,
+  activeTimerId,
+  setActiveTimerId,
+  totalTime
+}) => {
   const savedState = JSON.parse(localStorage.getItem(`timer-${id}`)) || {};
   const [timeLeft, setTimeLeft] = useState(
     savedState.remainingTime ?? initialTime
@@ -38,7 +47,6 @@ const Timer = ({ id, label, initialTime, onRemove, updateClockTime, activeTimerI
     }
   }, [isRunning, startTime]);
 
-
   useEffect(() => {
     localStorage.setItem(
       `timer-${id}`,
@@ -59,9 +67,24 @@ const Timer = ({ id, label, initialTime, onRemove, updateClockTime, activeTimerI
   };
 
   const resetTimer = () => {
+    console.log(totalTime)
     setIsRunning(false);
-    setTimeLeft(initialTime);
+    setTimeLeft(totalTime); // Reset to totalTime
     setStartTime(null);
+    if (activeTimerId === id) setActiveTimerId(null);
+
+    // Update local storage
+    localStorage.setItem(
+      `timer-${id}`,
+      JSON.stringify({
+        isRunning: false,
+        startTime: null,
+        remainingTime: totalTime, // Use totalTime
+      })
+    );
+
+    // Update the clock time in the parent component
+    updateClockTime(id, totalTime);
   };
 
   const playAlertSound = () => {
@@ -87,20 +110,25 @@ const Timer = ({ id, label, initialTime, onRemove, updateClockTime, activeTimerI
         <button
           onClick={startTimer}
           disabled={isRunning}
-          className={`px-3 py-1 rounded ${isRunning ? "bg-gray-500" : "bg-green-500"
-            }`}
+          className={` cursor-pointer px-3 py-1 rounded ${
+            isRunning ? "bg-gray-500" : "bg-green-500"
+          }`}
         >
           Start
         </button>
         <button
           onClick={pauseTimer}
           disabled={!isRunning}
-          className={`px-3 py-1 rounded ${!isRunning ? "bg-gray-500" : "bg-yellow-500"
-            }`}
+          className={` cursor-pointer px-3 py-1 rounded ${
+            !isRunning ? "bg-gray-500" : "bg-yellow-500"
+          }`}
         >
           Pause
         </button>
-        <button onClick={resetTimer} className="px-3 py-1 bg-blue-500 rounded">
+        <button
+          onClick={resetTimer}
+          className=" cursor-pointer px-3 py-1 bg-blue-500 rounded"
+        >
           Reset
         </button>
       </div>
@@ -139,27 +167,29 @@ export default function DigitalClocks() {
     localStorage.setItem("clocks", JSON.stringify(clocks));
   }, [clocks]);
 
+  const startTimer = (id) => {
+    setClocks((prev) =>
+      prev.map((clock) => ({
+        ...clock,
+        isRunning: clock.id === id, // Only the selected clock runs
+        startTime:
+          clock.id === id
+            ? Date.now() - (clock.initialTime - clock.time) * 1000
+            : clock.startTime,
+      }))
+    );
+    setActiveTimerId(id);
+  };
 
-const startTimer = (id) => {
-  setClocks((prev) =>
-    prev.map((clock) => ({
-      ...clock,
-      isRunning: clock.id === id, // Only the selected clock runs
-      startTime: clock.id === id ? Date.now() - (clock.initialTime - clock.time) * 1000 : clock.startTime,
-    }))
-  );
-  setActiveTimerId(id);
-};
-
-const pauseTimer = () => {
-  setClocks((prev) =>
-    prev.map((clock) => ({
-      ...clock,
-      isRunning: false, // Stop all clocks
-    }))
-  );
-  setActiveTimerId(null);
-};
+  const pauseTimer = () => {
+    setClocks((prev) =>
+      prev.map((clock) => ({
+        ...clock,
+        isRunning: false, // Stop all clocks
+      }))
+    );
+    setActiveTimerId(null);
+  };
 
   const addClock = () => {
     const totalSeconds =
@@ -175,6 +205,7 @@ const pauseTimer = () => {
         label: newClockLabel,
         time: totalSeconds,
         initialTime: totalSeconds,
+        totalTime: totalSeconds,
       },
     ]);
     setNewClockLabel("");
@@ -184,22 +215,25 @@ const pauseTimer = () => {
     setShowForm(false);
   };
 
-
   const removeClock = (id) => {
     const clockToRemove = clocks.find((clock) => clock.id === id);
     if (clockToRemove) {
       const { label, time, initialTime } = clockToRemove;
       const completedTime = initialTime - time; // Time elapsed
-      let percentageCompleted = initialTime > 0
-        ? Math.min(100, Math.max(0, ((completedTime / initialTime) * 100).toFixed(2)))
-        : 100;
-      if(completedTime==0){
-        percentageCompleted=100;
+      let percentageCompleted =
+        initialTime > 0
+          ? Math.min(
+              100,
+              Math.max(0, ((completedTime / initialTime) * 100).toFixed(2))
+            )
+          : 100;
+      if (completedTime == 0) {
+        percentageCompleted = 100;
       }
 
       addToHistory({ label, timeSet: initialTime, percentageCompleted });
     }
-    localStorage.removeItem(`timer-${id}`)
+    localStorage.removeItem(`timer-${id}`);
     setClocks(clocks.filter((clock) => clock.id !== id));
   };
 
@@ -233,15 +267,17 @@ const pauseTimer = () => {
       <header className="bg-gray-900 p-4 h-[60px] text-white">
         <ul className="flex justify-center gap-4">
           <li
-            className={` cursor-pointer px-4 py-2 rounded ${tab === "timers" ? "bg-blue-500" : "bg-gray-500"
-              }`}
+            className={` cursor-pointer px-4 py-2 rounded ${
+              tab === "timers" ? "bg-blue-500" : "bg-gray-500"
+            }`}
             onClick={() => handleTabChange("timers")}
           >
             Timers
           </li>
           <li
-            className={` cursor-pointer px-4 py-2 rounded ${tab === "history" ? "bg-blue-500" : "bg-gray-500"
-              }`}
+            className={` cursor-pointer px-4 py-2 rounded ${
+              tab === "history" ? "bg-blue-500" : "bg-gray-500"
+            }`}
             onClick={() => handleTabChange("history")}
           >
             History
@@ -308,7 +344,7 @@ const pauseTimer = () => {
             </div>
           )}
           <div className="flex gap-6 flex-wrap justify-center">
-            {clocks.map(({ id, label, time }) => (
+            {clocks.map(({ id, label, time, totalTime }) => (
               <Timer
                 key={id}
                 id={id}
@@ -319,6 +355,7 @@ const pauseTimer = () => {
                 addToHistory={addToHistory}
                 activeTimerId={activeTimerId}
                 setActiveTimerId={setActiveTimerId}
+                totalTime={totalTime}
               />
             ))}
           </div>
@@ -330,9 +367,7 @@ const pauseTimer = () => {
             <table className="w-full border-collapse border border-gray-700">
               <thead>
                 <tr className="bg-gray-800">
-                  <th className="border border-gray-700 px-4 py-2">
-                    Date
-                  </th>
+                  <th className="border border-gray-700 px-4 py-2">Date</th>
                   <th className="border border-gray-700 px-4 py-2">
                     Clock Name
                   </th>
@@ -350,14 +385,14 @@ const pauseTimer = () => {
                   .map(({ id, label, timeSet, percentageCompleted }) => (
                     <tr key={id} className="bg-gray-700">
                       <td className="border border-gray-600 px-4 py-2">
-                        {new Date(id).toLocaleString('en-US', {
-                          year: 'numeric',
-                          month: 'short',
-                          day: 'numeric',
-                          hour: 'numeric',
-                          minute: 'numeric',
-                          second: 'numeric',
-                          hour12: true
+                        {new Date(id).toLocaleString("en-US", {
+                          year: "numeric",
+                          month: "short",
+                          day: "numeric",
+                          hour: "numeric",
+                          minute: "numeric",
+                          second: "numeric",
+                          hour12: true,
                         })}
                       </td>
                       <td className="border border-gray-600 px-4 py-2">
