@@ -292,7 +292,11 @@ export default function DigitalClocks() {
         </ul>
       </header>
       {tab == "timers" ? (
-        <div className="flex flex-col justify-center items-center h-[calc(100vh-60px)] bg-gray-900 text-white">
+        <div className=" relative flex flex-col justify-center items-center h-[calc(100vh-60px)] bg-gray-900 text-white">
+          <h1 className="text-gray-400 absolute top-0 p-5 text-3xl font-mono ">
+            DON'T QUIT, SUFFER NOW AND LIVE THE REST OF YOUR LIFE AS A CHAMPION
+          </h1>
+          <p className="text-gray-500">Don't delete clocks !!! keep it running</p>
           <button
             onClick={() => setShowForm(true)}
             className="mb-4 px-4 py-2 bg-blue-500 rounded cursor-pointer"
