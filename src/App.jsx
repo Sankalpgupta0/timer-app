@@ -19,6 +19,7 @@ const Timer = ({
   activeTimerId,
   setActiveTimerId,
   totalTime,
+  setClocks
 }) => {
   const savedState = JSON.parse(localStorage.getItem(`timer-${id}`)) || {};
   const [timeLeft, setTimeLeft] = useState(
@@ -54,12 +55,26 @@ const Timer = ({
     );
   }, [isRunning, startTime, timeLeft]);
 
-  const startTimer = () => {
-    if (activeTimerId !== null && activeTimerId !== id) return; // Prevent multiple timers
+  const startTimer = () => { 
+    console.log("startTimer called");
+    if (activeTimerId !== null && activeTimerId !== id) return;
     setStartTime(Date.now() - (initialTime - timeLeft) * 1000);
     setIsRunning(true);
     setActiveTimerId(id);
+  
+    updateClockTime(id, timeLeft); // Update clock time in parent
+  
+    setClocks((prev) => {
+      const updatedClocks = prev.map((clock) =>
+        clock.id === id ? { ...clock, started: true } : clock
+      );
+  
+      localStorage.setItem("clocks", JSON.stringify(updatedClocks));
+      return updatedClocks;
+    });
   };
+  
+  
 
   const pauseTimer = () => {
     setIsRunning(false);
@@ -159,7 +174,7 @@ export default function DigitalClocks() {
   useEffect(() => {
     const savedClocks = JSON.parse(localStorage.getItem("clocks")) || [];
     setClocks(savedClocks);
-  }, []);
+  }, []);  
 
   useEffect(() => {
     localStorage.setItem("clocks", JSON.stringify(clocks));
@@ -210,6 +225,7 @@ export default function DigitalClocks() {
         label: newClockLabel,
         time: totalSeconds,
         totalTime: totalSeconds, // Store totalTime
+        started: false,
       },
     ]);
 
@@ -223,25 +239,21 @@ export default function DigitalClocks() {
   const removeClock = (id) => {
     const clockToRemove = clocks.find((clock) => clock.id === id);
     if (clockToRemove) {
-      const { label, time, totalTime } = clockToRemove;
-      const completedTime = totalTime - time;
-      console.log(time, totalTime, completedTime);
-      let percentageCompleted =
-        totalTime > 0
-          ? Math.min(
-            100,
-            Math.max(0, ((completedTime / totalTime) * 100).toFixed(2))
-          )
-          : 100;
-      if (completedTime === 0) {
-        percentageCompleted = 100;
-      }
+      const { label, time, totalTime, started } = clockToRemove;
+
+      console.log(label, time, totalTime, started)
+      let percentageCompleted = 100; // Default: Assume timer was fully completed
+
       if (time === totalTime) {
-        percentageCompleted = 0;
+        // Check if the timer was never started (not completed)
+        percentageCompleted = clockToRemove.started ? 100 : 0;
+      } else {
+        percentageCompleted = ((totalTime - time) / totalTime) * 100;
       }
 
-      addToHistory({ label, timeSet: totalTime, percentageCompleted });
+      addToHistory({ label, timeSet: totalTime, percentageCompleted: percentageCompleted.toFixed(2) });
     }
+
     localStorage.removeItem(`timer-${id}`);
     setClocks(clocks.filter((clock) => clock.id !== id));
   };
@@ -367,6 +379,7 @@ export default function DigitalClocks() {
                 activeTimerId={activeTimerId}
                 setActiveTimerId={setActiveTimerId}
                 totalTime={totalTime}
+                setClocks={setClocks}
               />
             ))}
           </div>
