@@ -234,10 +234,13 @@ export default function DigitalClocks() {
     const { label, time, totalTime, started } = clockToRemove;
 
     let percentageCompleted = 100;
+    let TimeDone = 0;
     if (time === totalTime) {
       percentageCompleted = started ? 100 : 0;
+      TimeDone = started ? totalTime : 0;
     } else {
       percentageCompleted = ((totalTime - time) / totalTime) * 100;
+      TimeDone = totalTime - time;
     }
 
     const existingEntry = history.find(
@@ -251,13 +254,11 @@ export default function DigitalClocks() {
       const previousPercentage = parseFloat(existingEntry.percentageCompleted);
 
       const newTimeSet = previousTimeSet + totalTime;
-      console.log("newTimeSet", newTimeSet);
+      // console.log("newTimeSet", newTimeSet);
 
       // weighted average calculation
       const weightedAverage = (
-        (previousPercentage * previousTimeSet +
-          percentageCompleted * (totalTime - time)) /
-        newTimeSet
+        (previousPercentage * previousTimeSet + percentageCompleted * TimeDone)/newTimeSet
       ).toFixed(2);
 
       console.log("weightedAverage", weightedAverage);
@@ -295,7 +296,6 @@ export default function DigitalClocks() {
       (e) => e.label.trim().toLowerCase() === entry.label.trim().toLowerCase()
     );
     if (existingEntryIndex !== -1) {
-      console.log("existingEntry", history[existingEntryIndex]);
       history.splice(existingEntryIndex, 1);
     }
     setHistory((prev) => [...prev, { ...entry, id: Date.now() }]);
