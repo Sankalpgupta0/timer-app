@@ -1,14 +1,5 @@
 import { useState, useEffect } from "react";
-
-const formatTime = (seconds) => {
-  const hours = Math.floor(seconds / 3600);
-  const minutes = Math.floor((seconds % 3600) / 60);
-  const secs = seconds % 60;
-  return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(
-    2,
-    "0"
-  )}:${String(secs).padStart(2, "0")}`;
-};
+import { formatTime } from "./utils";
 
 const Timer = ({
   id,
@@ -19,7 +10,7 @@ const Timer = ({
   activeTimerId,
   setActiveTimerId,
   totalTime,
-  setClocks
+  setClocks,
 }) => {
   const savedState = JSON.parse(localStorage.getItem(`timer-${id}`)) || {};
   const [timeLeft, setTimeLeft] = useState(
@@ -55,26 +46,24 @@ const Timer = ({
     );
   }, [isRunning, startTime, timeLeft]);
 
-  const startTimer = () => { 
+  const startTimer = () => {
     console.log("startTimer called");
     if (activeTimerId !== null && activeTimerId !== id) return;
     setStartTime(Date.now() - (initialTime - timeLeft) * 1000);
     setIsRunning(true);
     setActiveTimerId(id);
-  
+
     updateClockTime(id, timeLeft); // Update clock time in parent
-  
+
     setClocks((prev) => {
       const updatedClocks = prev.map((clock) =>
         clock.id === id ? { ...clock, started: true } : clock
       );
-  
+
       localStorage.setItem("clocks", JSON.stringify(updatedClocks));
       return updatedClocks;
     });
   };
-  
-  
 
   const pauseTimer = () => {
     setIsRunning(false);
@@ -82,7 +71,6 @@ const Timer = ({
   };
 
   const resetTimer = () => {
-    console.log(totalTime);
     setIsRunning(false);
     setTimeLeft(totalTime); // Reset to totalTime
     setStartTime(null);
@@ -94,7 +82,7 @@ const Timer = ({
       JSON.stringify({
         isRunning: false,
         startTime: null,
-        remainingTime: totalTime, // Use totalTime
+        remainingTime: totalTime,
       })
     );
 
@@ -125,16 +113,18 @@ const Timer = ({
         <button
           onClick={startTimer}
           disabled={isRunning}
-          className={` cursor-pointer px-3 py-1 rounded ${isRunning ? "bg-gray-500" : "bg-green-500"
-            }`}
+          className={` cursor-pointer px-3 py-1 rounded ${
+            isRunning ? "bg-gray-500" : "bg-green-500"
+          }`}
         >
           Start
         </button>
         <button
           onClick={pauseTimer}
           disabled={!isRunning}
-          className={` cursor-pointer px-3 py-1 rounded ${!isRunning ? "bg-gray-500" : "bg-yellow-500"
-            }`}
+          className={` cursor-pointer px-3 py-1 rounded ${
+            !isRunning ? "bg-gray-500" : "bg-yellow-500"
+          }`}
         >
           Pause
         </button>
@@ -152,7 +142,9 @@ const Timer = ({
 export { Timer };
 
 export default function DigitalClocks() {
-  const [clocks, setClocks] = useState([]);
+  const [clocks, setClocks] = useState(
+    JSON.parse(localStorage.getItem("clocks")) || []
+  );
   const [newClockLabel, setNewClockLabel] = useState("");
   const [hours, setHours] = useState("");
   const [minutes, setMinutes] = useState("");
@@ -170,11 +162,6 @@ export default function DigitalClocks() {
     setTab(newTab);
     localStorage.setItem("activeTab", newTab);
   };
-
-  useEffect(() => {
-    const savedClocks = JSON.parse(localStorage.getItem("clocks")) || [];
-    setClocks(savedClocks);
-  }, []);  
 
   useEffect(() => {
     localStorage.setItem("clocks", JSON.stringify(clocks));
@@ -209,6 +196,10 @@ export default function DigitalClocks() {
     return () => clearInterval(interval);
   }, []);
 
+  useEffect(() => {
+    localStorage.setItem("history", JSON.stringify(history));
+  }, [history]);
+
   const addClock = () => {
     const totalSeconds =
       (parseInt(hours) || 0) * 3600 +
@@ -238,41 +229,56 @@ export default function DigitalClocks() {
 
   const removeClock = (id) => {
     const clockToRemove = clocks.find((clock) => clock.id === id);
-    if (clockToRemove) {
-      const { label, time, totalTime, started } = clockToRemove;
+    if (!clockToRemove) return;
 
-      console.log(label, time, totalTime, started)
-      let percentageCompleted = 100; // Default: Assume timer was fully completed
+    const { label, time, totalTime, started } = clockToRemove;
 
-      if (time === totalTime) {
-        // Check if the timer was never started (not completed)
-        percentageCompleted = clockToRemove.started ? 100 : 0;
-      } else {
-        percentageCompleted = ((totalTime - time) / totalTime) * 100;
-      }
-
-      addToHistory({ label, timeSet: totalTime, percentageCompleted: percentageCompleted.toFixed(2) });
+    let percentageCompleted = 100;
+    if (time === totalTime) {
+      percentageCompleted = started ? 100 : 0;
+    } else {
+      percentageCompleted = ((totalTime - time) / totalTime) * 100;
     }
 
+    const existingEntry = history.find(
+      (entry) => entry.label.trim().toLowerCase() === label.trim().toLowerCase()
+    );
+
+    let newHistoryEntry;
+
+    if (existingEntry) {
+      const previousTimeSet = existingEntry.timeSet;
+      const previousPercentage = parseFloat(existingEntry.percentageCompleted);
+
+      const newTimeSet = previousTimeSet + totalTime;
+      console.log("newTimeSet", newTimeSet);
+
+      // weighted average calculation
+      const weightedAverage = (
+        (previousPercentage * previousTimeSet +
+          percentageCompleted * (totalTime - time)) /
+        newTimeSet
+      ).toFixed(2);
+
+      console.log("weightedAverage", weightedAverage);
+
+      newHistoryEntry = {
+        label,
+        timeSet: newTimeSet,
+        percentageCompleted: weightedAverage,
+      };
+    } else {
+      newHistoryEntry = {
+        label,
+        timeSet: totalTime,
+        percentageCompleted: percentageCompleted.toFixed(2),
+      };
+    }
+
+    addToHistory(newHistoryEntry);
+
     localStorage.removeItem(`timer-${id}`);
-    setClocks(clocks.filter((clock) => clock.id !== id));
-  };
-
-  useEffect(() => {
-    localStorage.setItem("history", JSON.stringify(history));
-  }, [history]);
-
-  useEffect(() => {
-    const savedHistory = JSON.parse(localStorage.getItem("history")) || [];
-    setHistory(savedHistory);
-  }, []);
-
-  useEffect(() => {
-    localStorage.setItem("history", JSON.stringify(history));
-  }, [history]);
-
-  const addToHistory = (entry) => {
-    setHistory((prev) => [...prev, { ...entry, id: Date.now() }]);
+    setClocks((prev) => prev.filter((clock) => clock.id !== id));
   };
 
   const updateClockTime = (id, newTime) => {
@@ -283,20 +289,34 @@ export default function DigitalClocks() {
     );
   };
 
+  const addToHistory = (entry) => {
+    // Check if the entry already exists and remove entry with low timeSet
+    const existingEntryIndex = history.findIndex(
+      (e) => e.label.trim().toLowerCase() === entry.label.trim().toLowerCase()
+    );
+    if (existingEntryIndex !== -1) {
+      console.log("existingEntry", history[existingEntryIndex]);
+      history.splice(existingEntryIndex, 1);
+    }
+    setHistory((prev) => [...prev, { ...entry, id: Date.now() }]);
+  };
+
   return (
     <>
       <header className="bg-gray-900 p-4 h-[60px] text-white">
         <ul className="flex justify-center gap-4">
           <li
-            className={` cursor-pointer px-4 py-2 rounded ${tab === "timers" ? "bg-blue-500" : "bg-gray-500"
-              }`}
+            className={` cursor-pointer px-4 py-2 rounded ${
+              tab === "timers" ? "bg-blue-500" : "bg-gray-500"
+            }`}
             onClick={() => handleTabChange("timers")}
           >
             Timers
           </li>
           <li
-            className={` cursor-pointer px-4 py-2 rounded ${tab === "history" ? "bg-blue-500" : "bg-gray-500"
-              }`}
+            className={` cursor-pointer px-4 py-2 rounded ${
+              tab === "history" ? "bg-blue-500" : "bg-gray-500"
+            }`}
             onClick={() => handleTabChange("history")}
           >
             History
@@ -308,7 +328,9 @@ export default function DigitalClocks() {
           <h1 className="text-gray-400 absolute top-0 p-5 text-3xl font-mono ">
             DON'T QUIT, SUFFER NOW AND LIVE THE REST OF YOUR LIFE AS A CHAMPION
           </h1>
-          <p className="text-gray-500">Don't delete clocks !!! keep it running</p>
+          <p className="text-gray-500">
+            Don't delete clocks !!! keep it running
+          </p>
           <button
             onClick={() => setShowForm(true)}
             className="mb-4 px-4 py-2 bg-blue-500 rounded cursor-pointer"
@@ -392,19 +414,28 @@ export default function DigitalClocks() {
               <thead>
                 <tr className="bg-gray-800">
                   <th className="border border-gray-700 px-4 py-2">Date</th>
-                  <th className="border border-gray-700 px-4 py-2">Clock Name</th>
-                  <th className="border border-gray-700 px-4 py-2">Timer Set</th>
-                  <th className="border border-gray-700 px-4 py-2">% Completed</th>
+                  <th className="border border-gray-700 px-4 py-2">
+                    Clock Name
+                  </th>
+                  <th className="border border-gray-700 px-4 py-2">
+                    Timer Set
+                  </th>
+                  <th className="border border-gray-700 px-4 py-2">
+                    % Completed
+                  </th>
                 </tr>
               </thead>
               <tbody>
                 {Object.entries(
                   history.reduce((acc, entry) => {
-                    const date = new Date(entry.id).toLocaleDateString("en-US", {
-                      year: "numeric",
-                      month: "short",
-                      day: "numeric",
-                    });
+                    const date = new Date(entry.id).toLocaleDateString(
+                      "en-US",
+                      {
+                        year: "numeric",
+                        month: "short",
+                        day: "numeric",
+                      }
+                    );
                     if (!acc[date]) acc[date] = [];
                     acc[date].push(entry);
                     return acc;
@@ -412,33 +443,37 @@ export default function DigitalClocks() {
                 )
                   .sort((a, b) => new Date(b[0]) - new Date(a[0])) // Sort dates descending
                   .map(([date, entries], index) => {
-                    const bgColor = index % 2 === 0 ? "bg-gray-800" : "bg-gray-700"; // Alternate colors
+                    const bgColor =
+                      index % 2 === 0 ? "bg-gray-800" : "bg-gray-700"; // Alternate colors
 
-                    return entries.map(({ id, label, timeSet, percentageCompleted }, i) => (
-                      <tr key={id} className={bgColor}>
-                        {i === 0 && (
-                          <td
-                            rowSpan={entries.length}
-                            className="border border-gray-600 px-4 py-2 font-bold text-blue-400 text-center"
-                          >
-                            {date}
+                    return entries.map(
+                      ({ id, label, timeSet, percentageCompleted }, i) => (
+                        <tr key={id} className={bgColor}>
+                          {i === 0 && (
+                            <td
+                              rowSpan={entries.length}
+                              className="border border-gray-600 px-4 py-2 font-bold text-blue-400 text-center"
+                            >
+                              {date}
+                            </td>
+                          )}
+                          <td className="border border-gray-600 px-4 py-2">
+                            {label}
                           </td>
-                        )}
-                        <td className="border border-gray-600 px-4 py-2">{label}</td>
-                        <td className="border border-gray-600 px-4 py-2">
-                          {formatTime(timeSet)}
-                        </td>
-                        <td className="border border-gray-600 px-4 py-2">
-                          {percentageCompleted}%
-                        </td>
-                      </tr>
-                    ));
+                          <td className="border border-gray-600 px-4 py-2">
+                            {formatTime(timeSet)}
+                          </td>
+                          <td className="border border-gray-600 px-4 py-2">
+                            {percentageCompleted}%
+                          </td>
+                        </tr>
+                      )
+                    );
                   })}
               </tbody>
             </table>
           </div>
         </div>
-
       )}
     </>
   );
