@@ -26,7 +26,7 @@ export const historySlice = createSlice({
         // Calculate weighted average percentage based on time spent
         const weightedPercentage = (
           (totalTimeSpent*100)/totalTimeSet
-        )
+        ).toFixed(2);
         
         // Create updated entry
         const updatedEntry = {
