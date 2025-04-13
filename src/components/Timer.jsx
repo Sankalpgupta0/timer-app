@@ -35,23 +35,29 @@ const Timer = ({ id, label, initialTime, totalTime }) => {
           
           // When timer completes, it means 100% completion
           dispatch(addHistoryEntry({
+            id: Date.now(),
             label,
-            timeSet: totalTime, // Total time set for the timer
-            timeSpent: totalTime, // Actual time spent (completed)
+            timeSet: totalTime,
+            timeSpent: totalTime,
             percentageCompleted: "100",
           }));
           
-          setTimeout(() => dispatch(removeClock(id)), 2000);
+          setTimeout(() => {
+            dispatch(removeClock(id));
+            localStorage.removeItem(`timer-${id}`);
+          }, 2000);
         }
       }, 1000);
 
       return () => clearInterval(interval);
     }
-  }, [isRunning, startTime]);
+  }, [isRunning, startTime, id, initialTime, totalTime, label, dispatch]);
 
   useEffect(() => {
-    dispatch(updateClockState({ id, isRunning, startTime, remainingTime: timeLeft }));
-  }, [isRunning, startTime, timeLeft]);
+    if (isRunning || startTime || timeLeft !== initialTime) {
+      dispatch(updateClockState({ id, isRunning, startTime, remainingTime: timeLeft }));
+    }
+  }, [isRunning, startTime, timeLeft, id, initialTime, dispatch]);
 
   const startTimer = () => {
     if (activeTimerId !== null && activeTimerId !== id) return;
@@ -71,6 +77,7 @@ const Timer = ({ id, label, initialTime, totalTime }) => {
     setStartTime(null);
     if (activeTimerId === id) dispatch(setActiveTimerId(null));
     dispatch(updateClockTime({ id, newTime: totalTime }));
+    localStorage.removeItem(`timer-${id}`);
   };
 
   const handleRemove = () => {
@@ -90,13 +97,15 @@ const Timer = ({ id, label, initialTime, totalTime }) => {
     }
 
     dispatch(addHistoryEntry({
+      id: Date.now(),
       label,
-      timeSet: totalTime, // Total time set for the timer
-      timeSpent: timeSpent > 0 ? timeSpent : 0, // Actual time spent
+      timeSet: totalTime,
+      timeSpent: timeSpent > 0 ? timeSpent : 0,
       percentageCompleted,
     }));
     
     dispatch(removeClock(id));
+    localStorage.removeItem(`timer-${id}`);
   };
 
   const playAlertSound = () => {

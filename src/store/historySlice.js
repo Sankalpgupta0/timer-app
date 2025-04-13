@@ -10,8 +10,11 @@ export const historySlice = createSlice({
   reducers: {
     addHistoryEntry: (state, action) => {
       const newEntry = action.payload;
+      const newEntryDate = new Date(newEntry.id).toISOString().split('T')[0];
+      
       const existingEntryIndex = state.entries.findIndex(
-        e => e.label.trim().toLowerCase() === newEntry.label.trim().toLowerCase()
+        e => e.label.trim().toLowerCase() === newEntry.label.trim().toLowerCase() &&
+             new Date(e.id).toISOString().split('T')[0] === newEntryDate
       );
       
       if (existingEntryIndex !== -1) {

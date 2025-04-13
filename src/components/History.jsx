@@ -21,11 +21,9 @@ const History = () => {
           <tbody>
             {Object.entries(
               history.reduce((acc, entry) => {
-                const date = new Date(entry.id).toLocaleDateString("en-US", {
-                  year: "numeric",
-                  month: "short",
-                  day: "numeric",
-                });
+                const dateObj = new Date(entry.id);
+                const date = `${dateObj.getFullYear()}-${String(dateObj.getMonth() + 1).padStart(2, '0')}-${String(dateObj.getDate()).padStart(2, '0')}`;
+
                 if (!acc[date]) acc[date] = [];
                 acc[date].push(entry);
                 return acc;
