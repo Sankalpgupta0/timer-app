@@ -3,7 +3,8 @@ import { useDispatch, useSelector } from "react-redux";
 import Timer from "./components/Timer";
 import History from "./components/History";
 import ClockForm from "./components/ClockForm";
-import { resetAllClocks } from "./store/timerSlice";
+import { resetAllClocks, midnightReset } from "./store/timerSlice";
+import { addHistoryEntry } from "./store/historySlice";
 import { setActiveTab, setShowForm } from "./store/uiSlice";
 
 export default function DigitalClocks() {
@@ -23,7 +24,25 @@ export default function DigitalClocks() {
         now.getHours() === 0 &&
         now.getMinutes() === 0
       ) {
-        dispatch(resetAllClocks());
+        // Get all current clocks before resetting
+        const currentClocks = dispatch(midnightReset());
+        
+        // Add each clock to history
+        currentClocks.forEach(clock => {
+          const timeSpent = clock.totalTime - clock.time;
+          const percentageCompleted = timeSpent > 0 
+            ? ((timeSpent / clock.totalTime) * 100).toFixed(2)
+            : "0";
+            
+          dispatch(addHistoryEntry({
+            id: Date.now(),
+            label: clock.label,
+            timeSet: clock.totalTime,
+            timeSpent: timeSpent > 0 ? timeSpent : 0,
+            percentageCompleted,
+          }));
+        });
+
         localStorage.setItem("lastResetDate", today);
       }
     };

@@ -54,6 +54,13 @@ export const timerSlice = createSlice({
         isRunning: false,
       }));
       localStorage.setItem("clocks", JSON.stringify(state.clocks));
+    },
+    midnightReset: (state) => {
+      // Return the current clocks before clearing them
+      const currentClocks = [...state.clocks];
+      state.clocks = [];
+      localStorage.setItem("clocks", JSON.stringify([]));
+      return currentClocks;
     }
   },
 });
@@ -65,6 +72,7 @@ export const {
   setActiveTimerId,
   updateClockState,
   resetAllClocks,
+  midnightReset,
 } = timerSlice.actions;
 
 export default timerSlice.reducer; 
