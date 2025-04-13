@@ -15,8 +15,8 @@ const timerService = {
   updateTimer: (id, dispatch, totalTime, label, setTimeLeft) => {
     if (timerService.intervals.has(id)) return;
     
-    const startTime = Date.now();
     const savedState = JSON.parse(localStorage.getItem(`timer-${id}`)) || {};
+    const startTime = savedState.startTime || Date.now();
     const initialRemainingTime = savedState.remainingTime || totalTime;
     
     const interval = setInterval(() => {
@@ -86,15 +86,54 @@ const Timer = ({ id, label, initialTime, totalTime }) => {
   const [isRunning, setIsRunning] = useState(savedState.isRunning ?? false);
   const [startTime, setStartTime] = useState(savedState.startTime ?? null);
 
-  // Update local state when Redux store changes
+  // Initialize timer state when component mounts
   useEffect(() => {
     const clock = JSON.parse(localStorage.getItem(`timer-${id}`));
     if (clock) {
-      setTimeLeft(clock.remainingTime);
+      const currentTime = Date.now();
+      const elapsedSeconds = Math.floor((currentTime - clock.startTime) / 1000);
+      const newTime = Math.max(0, clock.remainingTime - elapsedSeconds);
+      
+      setTimeLeft(newTime);
       setIsRunning(clock.isRunning);
       setStartTime(clock.startTime);
+
+      // Update localStorage with current time
+      if (clock.isRunning) {
+        localStorage.setItem(`timer-${id}`, JSON.stringify({
+          ...clock,
+          remainingTime: newTime,
+          lastUpdateTime: currentTime
+        }));
+      }
     }
   }, [id]);
+
+  // Handle visibility change
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible' && isRunning) {
+        const clock = JSON.parse(localStorage.getItem(`timer-${id}`));
+        if (clock) {
+          const currentTime = Date.now();
+          const elapsedSeconds = Math.floor((currentTime - clock.startTime) / 1000);
+          const newTime = Math.max(0, clock.remainingTime - elapsedSeconds);
+          
+          setTimeLeft(newTime);
+          dispatch(updateClockTime({ 
+            id, 
+            newTime,
+            lastUpdateTime: currentTime
+          }));
+        }
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [id, isRunning, dispatch]);
 
   useEffect(() => {
     if (isRunning) {
