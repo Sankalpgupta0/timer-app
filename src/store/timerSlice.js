@@ -2,7 +2,7 @@ import { createSlice } from '@reduxjs/toolkit';
 
 const initialState = {
   clocks: JSON.parse(localStorage.getItem("clocks")) || [],
-  activeTimerId: null,
+  activeTimerId: JSON.parse(localStorage.getItem("activeTimerId")) || null,
 };
 
 export const timerSlice = createSlice({
@@ -26,6 +26,12 @@ export const timerSlice = createSlice({
       state.clocks = state.clocks.filter(clock => clock.id !== id);
       localStorage.removeItem(`timer-${id}`);
       localStorage.setItem("clocks", JSON.stringify(state.clocks));
+      
+      // If the removed clock was active, clear the activeTimerId
+      if (state.activeTimerId === id) {
+        state.activeTimerId = null;
+        localStorage.removeItem("activeTimerId");
+      }
     },
     updateClockTime: (state, action) => {
       const { id, newTime } = action.payload;
@@ -37,6 +43,11 @@ export const timerSlice = createSlice({
     },
     setActiveTimerId: (state, action) => {
       state.activeTimerId = action.payload;
+      if (action.payload) {
+        localStorage.setItem("activeTimerId", JSON.stringify(action.payload));
+      } else {
+        localStorage.removeItem("activeTimerId");
+      }
     },
     updateClockState: (state, action) => {
       const { id, isRunning, startTime, remainingTime } = action.payload;
@@ -53,13 +64,17 @@ export const timerSlice = createSlice({
         time: clock.totalTime,
         isRunning: false,
       }));
+      state.activeTimerId = null;
       localStorage.setItem("clocks", JSON.stringify(state.clocks));
+      localStorage.removeItem("activeTimerId");
     },
     midnightReset: (state) => {
       // Return the current clocks before clearing them
       const currentClocks = [...state.clocks];
       state.clocks = [];
+      state.activeTimerId = null;
       localStorage.setItem("clocks", JSON.stringify([]));
+      localStorage.removeItem("activeTimerId");
       return currentClocks;
     }
   },
