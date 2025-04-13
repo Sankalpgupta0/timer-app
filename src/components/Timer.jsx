@@ -9,11 +9,76 @@ import {
 } from "../store/timerSlice";
 import { addHistoryEntry } from "../store/historySlice";
 
+// Create a background service for timer updates
+const timerService = {
+  intervals: new Map(),
+  updateTimer: (id, dispatch, totalTime, label, setTimeLeft) => {
+    if (timerService.intervals.has(id)) return;
+    
+    const startTime = Date.now();
+    const savedState = JSON.parse(localStorage.getItem(`timer-${id}`)) || {};
+    const initialRemainingTime = savedState.remainingTime || totalTime;
+    
+    const interval = setInterval(() => {
+      const currentTime = Date.now();
+      const elapsedSeconds = Math.floor((currentTime - startTime) / 1000);
+      const newTime = Math.max(0, initialRemainingTime - elapsedSeconds);
+
+      // Update both local state and Redux store
+      setTimeLeft(newTime);
+      dispatch(updateClockTime({ 
+        id, 
+        newTime,
+        lastUpdateTime: currentTime
+      }));
+
+      if (newTime === 0) {
+        clearInterval(interval);
+        timerService.intervals.delete(id);
+        
+        dispatch(addHistoryEntry({
+          id: Date.now(),
+          label,
+          timeSet: totalTime,
+          timeSpent: totalTime,
+          percentageCompleted: "100",
+        }));
+        
+        setTimeout(() => {
+          dispatch(removeClock(id));
+          localStorage.removeItem(`timer-${id}`);
+        }, 2000);
+        
+        const audio = new Audio("https://www.fesliyanstudios.com/play-mp3/4384");
+        audio.play().catch((err) => console.log("Audio playback failed:", err));
+        setTimeout(() => {
+          audio.pause();
+          audio.currentTime = 0;
+        }, 2000);
+      } else {
+        localStorage.setItem(`timer-${id}`, JSON.stringify({
+          isRunning: true,
+          startTime,
+          remainingTime: newTime,
+          lastUpdateTime: currentTime
+        }));
+      }
+    }, 100);
+
+    timerService.intervals.set(id, interval);
+  },
+  stopTimer: (id) => {
+    if (timerService.intervals.has(id)) {
+      clearInterval(timerService.intervals.get(id));
+      timerService.intervals.delete(id);
+    }
+  }
+};
+
 const Timer = ({ id, label, initialTime, totalTime }) => {
   const dispatch = useDispatch();
   const activeTimerId = useSelector((state) => state.timer.activeTimerId);
   const savedState = JSON.parse(localStorage.getItem(`timer-${id}`)) || {};
-  const intervalRef = useRef(null);
   
   const [timeLeft, setTimeLeft] = useState(
     savedState.remainingTime ?? initialTime
@@ -21,77 +86,70 @@ const Timer = ({ id, label, initialTime, totalTime }) => {
   const [isRunning, setIsRunning] = useState(savedState.isRunning ?? false);
   const [startTime, setStartTime] = useState(savedState.startTime ?? null);
 
+  // Update local state when Redux store changes
   useEffect(() => {
-    // Cleanup interval on unmount
-    return () => {
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current);
-      }
-    };
-  }, []);
+    const clock = JSON.parse(localStorage.getItem(`timer-${id}`));
+    if (clock) {
+      setTimeLeft(clock.remainingTime);
+      setIsRunning(clock.isRunning);
+      setStartTime(clock.startTime);
+    }
+  }, [id]);
 
   useEffect(() => {
     if (isRunning) {
-      const startTimestamp = Date.now();
-      const initialElapsed = startTime ? Math.floor((startTimestamp - startTime) / 1000) : 0;
-      
-      intervalRef.current = setInterval(() => {
-        const currentTimestamp = Date.now();
-        const elapsed = Math.floor((currentTimestamp - startTimestamp) / 1000) + initialElapsed;
-        const newTimeLeft = Math.max(0, initialTime - elapsed);
-        
-        setTimeLeft(newTimeLeft);
-        dispatch(updateClockTime({ id, newTime: newTimeLeft }));
-
-        if (newTimeLeft === 0) {
-          setIsRunning(false);
-          playAlertSound();
-          clearInterval(intervalRef.current);
-          
-          // When timer completes, it means 100% completion
-          dispatch(addHistoryEntry({
-            id: Date.now(),
-            label,
-            timeSet: totalTime,
-            timeSpent: totalTime,
-            percentageCompleted: "100",
-          }));
-          
-          setTimeout(() => {
-            dispatch(removeClock(id));
-            localStorage.removeItem(`timer-${id}`);
-          }, 2000);
-        }
-      }, 1000); // Changed to 1000ms for more accurate timing
-
-      return () => {
-        if (intervalRef.current) {
-          clearInterval(intervalRef.current);
-        }
-      };
+      timerService.updateTimer(id, dispatch, totalTime, label, setTimeLeft);
+    } else {
+      timerService.stopTimer(id);
     }
-  }, [isRunning, startTime, id, initialTime, totalTime, label, dispatch]);
+
+    return () => {
+      timerService.stopTimer(id);
+    };
+  }, [isRunning, id, totalTime, label, dispatch]);
 
   useEffect(() => {
     if (isRunning || startTime || timeLeft !== initialTime) {
-      dispatch(updateClockState({ id, isRunning, startTime, remainingTime: timeLeft }));
+      dispatch(updateClockState({ 
+        id, 
+        isRunning, 
+        startTime, 
+        remainingTime: timeLeft,
+        lastUpdateTime: Date.now()
+      }));
     }
   }, [isRunning, startTime, timeLeft, id, initialTime, dispatch]);
 
   const startTimer = () => {
-    // If another timer is running, don't allow starting this one
     if (activeTimerId !== null && activeTimerId !== id) {
       return;
     }
     
-    setStartTime(Date.now() - (initialTime - timeLeft) * 1000);
+    const now = Date.now();
+    setStartTime(now);
     setIsRunning(true);
     dispatch(setActiveTimerId(id));
+    
+    // Initialize timer state
+    localStorage.setItem(`timer-${id}`, JSON.stringify({
+      isRunning: true,
+      startTime: now,
+      remainingTime: timeLeft,
+      lastUpdateTime: now
+    }));
   };
 
   const pauseTimer = () => {
     setIsRunning(false);
     dispatch(setActiveTimerId(null));
+    
+    // Update timer state
+    const savedState = JSON.parse(localStorage.getItem(`timer-${id}`)) || {};
+    localStorage.setItem(`timer-${id}`, JSON.stringify({
+      ...savedState,
+      isRunning: false,
+      lastUpdateTime: Date.now()
+    }));
   };
 
   const resetTimer = () => {
@@ -104,18 +162,14 @@ const Timer = ({ id, label, initialTime, totalTime }) => {
   };
 
   const handleRemove = () => {
-    // Calculate time spent
     const timeSpent = totalTime - timeLeft;
     let percentageCompleted;
 
     if (timeLeft === totalTime) {
-      // If timer wasn't started or was reset
       percentageCompleted = "0";
     } else if (timeLeft === 0) {
-      // If timer completed
       percentageCompleted = "100";
     } else {
-      // Calculate actual percentage based on time spent
       percentageCompleted = ((timeSpent / totalTime) * 100).toFixed(2);
     }
 
@@ -129,15 +183,6 @@ const Timer = ({ id, label, initialTime, totalTime }) => {
     
     dispatch(removeClock(id));
     localStorage.removeItem(`timer-${id}`);
-  };
-
-  const playAlertSound = () => {
-    const audio = new Audio("https://www.fesliyanstudios.com/play-mp3/4384");
-    audio.play().catch((err) => console.log("Audio playback failed:", err));
-    setTimeout(() => {
-      audio.pause();
-      audio.currentTime = 0;
-    }, 2000);
   };
 
   return (

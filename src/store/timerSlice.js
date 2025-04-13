@@ -18,6 +18,8 @@ export const timerSlice = createSlice({
         time: totalSeconds,
         totalTime: totalSeconds,
         started: false,
+        startTime: null,
+        lastUpdateTime: null,
       });
       localStorage.setItem("clocks", JSON.stringify(state.clocks));
     },
@@ -27,17 +29,19 @@ export const timerSlice = createSlice({
       localStorage.removeItem(`timer-${id}`);
       localStorage.setItem("clocks", JSON.stringify(state.clocks));
       
-      // If the removed clock was active, clear the activeTimerId
       if (state.activeTimerId === id) {
         state.activeTimerId = null;
         localStorage.removeItem("activeTimerId");
       }
     },
     updateClockTime: (state, action) => {
-      const { id, newTime } = action.payload;
+      const { id, newTime, lastUpdateTime } = action.payload;
       const clock = state.clocks.find(c => c.id === id);
       if (clock) {
         clock.time = newTime;
+        if (lastUpdateTime) {
+          clock.lastUpdateTime = lastUpdateTime;
+        }
         localStorage.setItem("clocks", JSON.stringify(state.clocks));
       }
     },
@@ -50,26 +54,35 @@ export const timerSlice = createSlice({
       }
     },
     updateClockState: (state, action) => {
-      const { id, isRunning, startTime, remainingTime } = action.payload;
+      const { id, isRunning, startTime, remainingTime, lastUpdateTime } = action.payload;
       const clock = state.clocks.find(c => c.id === id);
       if (clock) {
-        clock.started = true;
+        clock.started = isRunning;
+        clock.startTime = startTime;
+        clock.time = remainingTime;
+        clock.lastUpdateTime = lastUpdateTime;
         localStorage.setItem("clocks", JSON.stringify(state.clocks));
-        localStorage.setItem(`timer-${id}`, JSON.stringify({ isRunning, startTime, remainingTime }));
+        localStorage.setItem(`timer-${id}`, JSON.stringify({ 
+          isRunning, 
+          startTime, 
+          remainingTime,
+          lastUpdateTime 
+        }));
       }
     },
     resetAllClocks: (state) => {
       state.clocks = state.clocks.map(clock => ({
         ...clock,
         time: clock.totalTime,
-        isRunning: false,
+        started: false,
+        startTime: null,
+        lastUpdateTime: null,
       }));
       state.activeTimerId = null;
       localStorage.setItem("clocks", JSON.stringify(state.clocks));
       localStorage.removeItem("activeTimerId");
     },
     midnightReset: (state) => {
-      // Return the current clocks before clearing them
       const currentClocks = [...state.clocks];
       state.clocks = [];
       state.activeTimerId = null;
