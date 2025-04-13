@@ -60,7 +60,11 @@ const Timer = ({ id, label, initialTime, totalTime }) => {
   }, [isRunning, startTime, timeLeft, id, initialTime, dispatch]);
 
   const startTimer = () => {
-    if (activeTimerId !== null && activeTimerId !== id) return;
+    // If another timer is running, don't allow starting this one
+    if (activeTimerId !== null && activeTimerId !== id) {
+      return;
+    }
+    
     setStartTime(Date.now() - (initialTime - timeLeft) * 1000);
     setIsRunning(true);
     dispatch(setActiveTimerId(id));
@@ -130,9 +134,9 @@ const Timer = ({ id, label, initialTime, totalTime }) => {
       <div className="mt-2 flex gap-2">
         <button
           onClick={startTimer}
-          disabled={isRunning}
+          disabled={isRunning || (activeTimerId !== null && activeTimerId !== id)}
           className={`cursor-pointer px-3 py-1 rounded ${
-            isRunning ? "bg-gray-500" : "bg-green-500"
+            isRunning || (activeTimerId !== null && activeTimerId !== id) ? "bg-gray-500" : "bg-green-500"
           }`}
         >
           Start
