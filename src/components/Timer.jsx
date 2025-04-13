@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { formatTime } from "../utils";
 import {
@@ -13,6 +13,7 @@ const Timer = ({ id, label, initialTime, totalTime }) => {
   const dispatch = useDispatch();
   const activeTimerId = useSelector((state) => state.timer.activeTimerId);
   const savedState = JSON.parse(localStorage.getItem(`timer-${id}`)) || {};
+  const intervalRef = useRef(null);
   
   const [timeLeft, setTimeLeft] = useState(
     savedState.remainingTime ?? initialTime
@@ -21,17 +22,31 @@ const Timer = ({ id, label, initialTime, totalTime }) => {
   const [startTime, setStartTime] = useState(savedState.startTime ?? null);
 
   useEffect(() => {
+    // Cleanup interval on unmount
+    return () => {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+      }
+    };
+  }, []);
+
+  useEffect(() => {
     if (isRunning) {
-      const interval = setInterval(() => {
-        const elapsed = Math.floor((Date.now() - startTime) / 1000);
+      const startTimestamp = Date.now();
+      const initialElapsed = startTime ? Math.floor((startTimestamp - startTime) / 1000) : 0;
+      
+      intervalRef.current = setInterval(() => {
+        const currentTimestamp = Date.now();
+        const elapsed = Math.floor((currentTimestamp - startTimestamp) / 1000) + initialElapsed;
         const newTimeLeft = Math.max(0, initialTime - elapsed);
+        
         setTimeLeft(newTimeLeft);
         dispatch(updateClockTime({ id, newTime: newTimeLeft }));
 
         if (newTimeLeft === 0) {
           setIsRunning(false);
           playAlertSound();
-          clearInterval(interval);
+          clearInterval(intervalRef.current);
           
           // When timer completes, it means 100% completion
           dispatch(addHistoryEntry({
@@ -47,9 +62,13 @@ const Timer = ({ id, label, initialTime, totalTime }) => {
             localStorage.removeItem(`timer-${id}`);
           }, 2000);
         }
-      }, 1000);
+      }, 1000); // Changed to 1000ms for more accurate timing
 
-      return () => clearInterval(interval);
+      return () => {
+        if (intervalRef.current) {
+          clearInterval(intervalRef.current);
+        }
+      };
     }
   }, [isRunning, startTime, id, initialTime, totalTime, label, dispatch]);
 
