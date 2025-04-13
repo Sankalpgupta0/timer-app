@@ -19,7 +19,15 @@ const timerService = {
     const startTime = savedState.startTime || Date.now();
     const initialRemainingTime = savedState.remainingTime || totalTime;
     
-    const interval = setInterval(() => {
+    // Store the initial state
+    localStorage.setItem(`timer-${id}`, JSON.stringify({
+      isRunning: true,
+      startTime,
+      remainingTime: initialRemainingTime,
+      lastUpdateTime: Date.now()
+    }));
+
+    const updateTime = () => {
       const currentTime = Date.now();
       const elapsedSeconds = Math.floor((currentTime - startTime) / 1000);
       const newTime = Math.max(0, initialRemainingTime - elapsedSeconds);
@@ -63,8 +71,9 @@ const timerService = {
           lastUpdateTime: currentTime
         }));
       }
-    }, 100);
+    };
 
+    const interval = setInterval(updateTime, 1000);
     timerService.intervals.set(id, interval);
   },
   stopTimer: (id) => {
@@ -89,51 +98,23 @@ const Timer = ({ id, label, initialTime, totalTime }) => {
   // Initialize timer state when component mounts
   useEffect(() => {
     const clock = JSON.parse(localStorage.getItem(`timer-${id}`));
-    if (clock) {
+    if (clock && clock.isRunning) {
       const currentTime = Date.now();
       const elapsedSeconds = Math.floor((currentTime - clock.startTime) / 1000);
       const newTime = Math.max(0, clock.remainingTime - elapsedSeconds);
       
       setTimeLeft(newTime);
-      setIsRunning(clock.isRunning);
+      setIsRunning(true);
       setStartTime(clock.startTime);
 
       // Update localStorage with current time
-      if (clock.isRunning) {
-        localStorage.setItem(`timer-${id}`, JSON.stringify({
-          ...clock,
-          remainingTime: newTime,
-          lastUpdateTime: currentTime
-        }));
-      }
+      localStorage.setItem(`timer-${id}`, JSON.stringify({
+        ...clock,
+        remainingTime: newTime,
+        lastUpdateTime: currentTime
+      }));
     }
   }, [id]);
-
-  // Handle visibility change
-  useEffect(() => {
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === 'visible' && isRunning) {
-        const clock = JSON.parse(localStorage.getItem(`timer-${id}`));
-        if (clock) {
-          const currentTime = Date.now();
-          const elapsedSeconds = Math.floor((currentTime - clock.startTime) / 1000);
-          const newTime = Math.max(0, clock.remainingTime - elapsedSeconds);
-          
-          setTimeLeft(newTime);
-          dispatch(updateClockTime({ 
-            id, 
-            newTime,
-            lastUpdateTime: currentTime
-          }));
-        }
-      }
-    };
-
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-    return () => {
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
-    };
-  }, [id, isRunning, dispatch]);
 
   useEffect(() => {
     if (isRunning) {
