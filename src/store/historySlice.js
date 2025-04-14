@@ -21,32 +21,35 @@ export const historySlice = createSlice({
         const date1 = new Date(Date.now());
         const date2 = new Date(state.entries[existingEntryIndex].id);
 
-        if (date1.getFullYear() === date2.getFullYear() && date1.getMonth() === date2.getMonth() && date1.getDate() === date2.getDate()) {
+        const sameDate =
+          date1.getFullYear() === date2.getFullYear() &&
+          date1.getMonth() === date2.getMonth() &&
+          date1.getDate() === date2.getDate();
+
+        if (sameDate) {
           const existingEntry = state.entries[existingEntryIndex];
 
-          // Sum up the total time set
           const totalTimeSet = existingEntry.timeSet + newEntry.timeSet;
-
-          // Sum up the total time spent
           const totalTimeSpent = (existingEntry.timeSpent || 0) + (newEntry.timeSpent || 0);
+          const weightedPercentage = ((totalTimeSpent * 100) / totalTimeSet).toFixed(2);
 
-          // Calculate weighted average percentage based on time spent
-          const weightedPercentage = (
-            (totalTimeSpent * 100) / totalTimeSet
-          ).toFixed(2);
-
-          // Create updated entry
           const updatedEntry = {
             ...newEntry,
             id: Date.now(),
-            timeSet: totalTimeSet, // Total time set across all sessions
-            timeSpent: totalTimeSpent, // Total time spent across all sessions
+            timeSet: totalTimeSet,
+            timeSpent: totalTimeSpent,
             percentageCompleted: weightedPercentage,
           };
 
-          // Remove old entry and add updated one
           state.entries.splice(existingEntryIndex, 1);
           state.entries.push(updatedEntry);
+        } else {
+          // Different date — add as new entry
+          state.entries.push({
+            ...newEntry,
+            id: Date.now(),
+            timeSpent: newEntry.timeSpent || 0,
+          });
         }
 
       } else {
