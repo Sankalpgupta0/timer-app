@@ -10,11 +10,10 @@ export const historySlice = createSlice({
   reducers: {
     addHistoryEntry: (state, action) => {
       const newEntry = action.payload;
-      const existingEntryIndex = state.entries.findIndex(
+      const existingEntryIndex = state.entries.findLastIndex(
         e => e.label.trim().toLowerCase() === newEntry.label.trim().toLowerCase()
-      );
+      );      
       // console.log("new entry date : ", newEntry)
-      // console.log("prev entry date : ", state.entries[existingEntryIndex].id)
 
 
       if (existingEntryIndex !== -1) {
@@ -25,6 +24,8 @@ export const historySlice = createSlice({
           date1.getFullYear() === date2.getFullYear() &&
           date1.getMonth() === date2.getMonth() &&
           date1.getDate() === date2.getDate();
+
+          console.log("sameDate : ", sameDate)
 
         if (sameDate) {
           const existingEntry = state.entries[existingEntryIndex];
