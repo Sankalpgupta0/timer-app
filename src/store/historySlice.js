@@ -13,15 +13,15 @@ export const historySlice = createSlice({
       const existingEntryIndex = state.entries.findIndex(
         e => e.label.trim().toLowerCase() === newEntry.label.trim().toLowerCase()
       );
-      console.log("new entry date : ", newEntry)
-      console.log("prev entry date : ", state.entries[existingEntryIndex].id)
+      // console.log("new entry date : ", newEntry)
+      // console.log("prev entry date : ", state.entries[existingEntryIndex].id)
 
-      const date1 = new Date(Date.now());
-      const date2 = new Date(state.entries[existingEntryIndex].id);
 
-      if (date1.getFullYear() === date2.getFullYear() && date1.getMonth() === date2.getMonth() && date1.getDate() === date2.getDate()) {
+      if (existingEntryIndex !== -1) {
+        const date1 = new Date(Date.now());
+        const date2 = new Date(state.entries[existingEntryIndex].id);
 
-        if (existingEntryIndex !== -1) {
+        if (date1.getFullYear() === date2.getFullYear() && date1.getMonth() === date2.getMonth() && date1.getDate() === date2.getDate()) {
           const existingEntry = state.entries[existingEntryIndex];
 
           // Sum up the total time set
